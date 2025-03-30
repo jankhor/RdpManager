@@ -1,7 +1,8 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Forms;
-using Application = System.Windows.Application;
+// Alias to avoid ambiguity
+using WpfApplication = System.Windows.Application;
 
 namespace RdpManager
 {
@@ -26,7 +27,7 @@ namespace RdpManager
 
             var contextMenu = new ContextMenuStrip();
             var exitItem = new ToolStripMenuItem("Exit");
-            exitItem.Click += (s, e) => Application.Current.Shutdown();
+            exitItem.Click += (s, e) => WpfApplication.Current.Shutdown();
             contextMenu.Items.Add(exitItem);
             _notifyIcon.ContextMenuStrip = contextMenu;
         }

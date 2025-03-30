@@ -68,9 +68,9 @@ namespace RdpManager.ViewModels
 
         private void CloseWindow(bool dialogResult)
         {
-            foreach (Window window in Application.Current.Windows)
+            foreach (System.Windows.Window window in System.Windows.Application.Current.Windows)
             {
-                if (window is Views.SettingsWindow settingsWindow && 
+                if (window is Views.SettingsWindow settingsWindow &&
                     settingsWindow.DataContext == this)
                 {
                     settingsWindow.DialogResult = dialogResult;

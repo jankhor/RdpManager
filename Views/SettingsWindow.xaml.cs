@@ -1,4 +1,5 @@
 using System.Windows;
+using RdpManager.ViewModels;
 
 namespace RdpManager.Views
 {
@@ -7,7 +8,7 @@ namespace RdpManager.Views
         public SettingsWindow()
         {
             InitializeComponent();
-            DataContext = new ViewModels.SettingsViewModel();
+            DataContext = new SettingsViewModel();
         }
     }
 }
