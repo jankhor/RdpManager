@@ -30,7 +30,7 @@
                             Padding="10,3"/>
                 </StackPanel>
                 
-                <ListBox x:Name="foldersList" ItemsSource="{Binding Settings.MonitoredFolders}" 
+                <ListBox x:Name="foldersList" ItemsSource="{Binding MonitoredFolders}" 
                          ScrollViewer.VerticalScrollBarVisibility="Auto"/>
             </DockPanel>
         </GroupBox>

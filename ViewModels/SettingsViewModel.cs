@@ -5,7 +5,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
-using MessageBox = System.Windows.MessageBox; // Explicitly use WPF MessageBox
+using System.Windows.Forms;
+using MessageBox = System.Windows.MessageBox;
 
 namespace RdpManager.ViewModels
 {
@@ -14,7 +15,10 @@ namespace RdpManager.ViewModels
         private readonly SettingsService _settingsService;
         
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(MonitoredFolders))]
         private AppSettings _settings;
+
+        public ICollection<string> MonitoredFolders => Settings.MonitoredFolders;
 
         public IRelayCommand AddFolderCommand { get; }
         public IRelayCommand<string> RemoveFolderCommand { get; }
@@ -34,51 +38,29 @@ namespace RdpManager.ViewModels
 
         private void AddFolder()
         {
-            try
+            var dialog = new FolderBrowserDialog();
+            if (dialog.ShowDialog() == DialogResult.OK)
             {
-                var dialog = new System.Windows.Forms.FolderBrowserDialog();
-                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                var path = dialog.SelectedPath;
+                if (!Settings.MonitoredFolders.Contains(path))
                 {
-                    var path = dialog.SelectedPath;
-                    if (Directory.Exists(path))
-                    {
-                        if (!Settings.MonitoredFolders.Contains(path))
-                        {
-                            Settings.MonitoredFolders.Add(path);
-                            OnPropertyChanged(nameof(Settings));
-                        }
-                        else
-                        {
-                            MessageBox.Show("This folder is already being monitored",
-                                "Information", MessageBoxButton.OK, MessageBoxImage.Information);
-                        }
-                    }
+                    Settings.MonitoredFolders.Add(path);
+                    OnPropertyChanged(nameof(MonitoredFolders));
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error adding folder: {ex.Message}", 
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                else
+                {
+                    MessageBox.Show("This folder is already being monitored",
+                        "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
         }
 
-
         private void RemoveFolder(string? folder)
         {
-            if (string.IsNullOrEmpty(folder)) return;
-    
-            try
+            if (!string.IsNullOrEmpty(folder) && Settings.MonitoredFolders.Contains(folder))
             {
-                if (Settings.MonitoredFolders.Contains(folder))
-                {
-                    Settings.MonitoredFolders.Remove(folder);
-                    OnPropertyChanged(nameof(Settings));
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error removing folder: {ex.Message}", 
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Settings.MonitoredFolders.Remove(folder);
+                OnPropertyChanged(nameof(MonitoredFolders));
             }
         }
 
@@ -91,8 +73,8 @@ namespace RdpManager.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving settings: {ex.Message}", "Error", 
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Error saving settings: {ex.Message}", 
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -105,7 +87,7 @@ namespace RdpManager.ViewModels
         {
             foreach (System.Windows.Window window in System.Windows.Application.Current.Windows)
             {
-                if (window is Views.SettingsWindow settingsWindow &&
+                if (window is Views.SettingsWindow settingsWindow && 
                     settingsWindow.DataContext == this)
                 {
                     settingsWindow.DialogResult = dialogResult;
