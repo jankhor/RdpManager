@@ -3,6 +3,8 @@ using System.Drawing; // For Font, FontStyle
 using System.Windows;
 using System.Windows.Forms;
 using Application = System.Windows.Application;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace RdpManager
 {
@@ -31,6 +33,15 @@ namespace RdpManager
             RefreshTrayMenu();
             
             _notifyIcon.DoubleClick += (s, e) => ShowConnectionsMenu();
+            
+            // Handle left mouse click
+            _notifyIcon.MouseClick += (s, e) => 
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    ShowConnectionsMenu();
+                }
+            };
         }
 
         private void RefreshTrayMenu()
@@ -38,22 +49,29 @@ namespace RdpManager
             if (_notifyIcon?.ContextMenuStrip == null) return;
             
             _notifyIcon.ContextMenuStrip.Items.Clear();
-            
-            // Add connections with favorite indicators
-            foreach (var connection in _viewModel.Connections)
+
+            // Group connections by folder
+            var groupedConnections = _viewModel.Connections
+                .GroupBy(c => System.IO.Path.GetDirectoryName(c.FilePath) ?? "Other")
+                .OrderBy(g => g.Key);
+
+            foreach (var group in groupedConnections)
             {
-                var menuItem = new ToolStripMenuItem(
-                    connection.IsFavorite ? $"★ {connection.DisplayName}" : connection.DisplayName);
-                
-                menuItem.Click += (s, e) => _viewModel.LaunchCommand.Execute(connection.FilePath);
-                
-                // Bold font for favorites
-                if (connection.IsFavorite)
+                // If only one item in folder, add directly
+                if (group.Count() == 1)
                 {
-                    menuItem.Font = new Font(menuItem.Font, System.Drawing.FontStyle.Bold); // Fully qualified
+                    var connection = group.First();
+                    AddConnectionToMenu(connection);
                 }
-                
-                _notifyIcon.ContextMenuStrip.Items.Add(menuItem);
+                else // Create submenu for folder
+                {
+                    var folderMenu = new ToolStripMenuItem(System.IO.Path.GetFileName(group.Key));
+                    foreach (var connection in group.OrderBy(c => c.DisplayName))
+                    {
+                        AddConnectionToMenu(connection, folderMenu);
+                    }
+                    _notifyIcon.ContextMenuStrip.Items.Add(folderMenu);
+                }
             }
 
             // Add separator
@@ -78,12 +96,40 @@ namespace RdpManager
             _notifyIcon.ContextMenuStrip.Items.Add(exitItem);
         }
 
+        private void AddConnectionToMenu(RdpConnection connection, ToolStripMenuItem parentMenu = null)
+        {
+            var menuItem = new ToolStripMenuItem(
+                connection.IsFavorite ? $"★ {connection.DisplayName}" : connection.DisplayName);
+            
+            // Add right-click to toggle favorite
+            menuItem.MouseUp += (s, e) => 
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    _viewModel.ToggleFavoriteCommand.Execute(connection.FilePath);
+                    RefreshTrayMenu();
+                }
+                else if (e.Button == MouseButtons.Left)
+                {
+                    _viewModel.LaunchCommand.Execute(connection.FilePath);
+                }
+            };
+
+            // Bold font for favorites
+            if (connection.IsFavorite)
+            {
+                menuItem.Font = new Font(menuItem.Font, System.Drawing.FontStyle.Bold);
+            }
+
+            if (parentMenu != null)
+                parentMenu.DropDownItems.Add(menuItem);
+            else
+                _notifyIcon?.ContextMenuStrip?.Items.Add(menuItem);
+        }
+
         private void ShowConnectionsMenu()
         {
-            if (_notifyIcon?.ContextMenuStrip != null)
-            {
-                _notifyIcon.ContextMenuStrip.Show(Control.MousePosition);
-            }
+            _notifyIcon?.ContextMenuStrip?.Show(Control.MousePosition);
         }
 
         protected override void OnClosing(CancelEventArgs e)
