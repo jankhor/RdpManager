@@ -34,7 +34,7 @@ namespace RdpManager
             LoadConnections();
         }
 
-        private void LoadConnections()
+        public void LoadConnections()
         {
             var connections = _rdpService.FindRdpFiles(_settings.MonitoredFolders);
 

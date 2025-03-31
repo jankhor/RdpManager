@@ -1,18 +1,19 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Forms;
-// Alias to avoid ambiguity
-using WpfApplication = System.Windows.Application;
+using Application = System.Windows.Application;
 
 namespace RdpManager
 {
     public partial class MainWindow : Window
     {
         private NotifyIcon? _notifyIcon;
+        private readonly MainViewModel _viewModel;
 
         public MainWindow()
         {
             InitializeComponent();
+            _viewModel = new MainViewModel();
             SetupSystemTray();
         }
 
@@ -22,14 +23,57 @@ namespace RdpManager
             {
                 Icon = new System.Drawing.Icon("Resources/rdp_icon.ico"),
                 Text = "RDP Manager",
-                Visible = true
+                Visible = true,
+                ContextMenuStrip = new ContextMenuStrip()
             };
 
-            var contextMenu = new ContextMenuStrip();
+            RefreshTrayMenu();
+            
+            _notifyIcon.DoubleClick += (s, e) => ShowConnectionsMenu();
+        }
+
+        private void RefreshTrayMenu()
+        {
+            if (_notifyIcon?.ContextMenuStrip == null) return;
+            
+            _notifyIcon.ContextMenuStrip.Items.Clear();
+            
+            // Add connections
+            foreach (var connection in _viewModel.Connections)
+            {
+                var menuItem = new ToolStripMenuItem(connection.DisplayName);
+                menuItem.Click += (s, e) => _viewModel.LaunchCommand.Execute(connection.FilePath);
+                _notifyIcon.ContextMenuStrip.Items.Add(menuItem);
+            }
+
+            // Add separator
+            _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
+            
+            // Add refresh option
+            var refreshItem = new ToolStripMenuItem("Refresh");
+            refreshItem.Click += (s, e) => {
+                _viewModel.LoadConnections();
+                RefreshTrayMenu();
+            };
+            _notifyIcon.ContextMenuStrip.Items.Add(refreshItem);
+            
+            // Add settings option
+            var settingsItem = new ToolStripMenuItem("Settings");
+            settingsItem.Click += (s, e) => _viewModel.OpenSettingsCommand.Execute(null);
+            _notifyIcon.ContextMenuStrip.Items.Add(settingsItem);
+            
+            // Add exit option
             var exitItem = new ToolStripMenuItem("Exit");
-            exitItem.Click += (s, e) => WpfApplication.Current.Shutdown();
-            contextMenu.Items.Add(exitItem);
-            _notifyIcon.ContextMenuStrip = contextMenu;
+            exitItem.Click += (s, e) => Application.Current.Shutdown();
+            _notifyIcon.ContextMenuStrip.Items.Add(exitItem);
+        }
+
+        private void ShowConnectionsMenu()
+        {
+            if (_notifyIcon?.ContextMenuStrip != null)
+            {
+                // _notifyIcon.ContextMenuStrip.Show(Cursor.Position);
+            }
         }
 
         protected override void OnClosing(CancelEventArgs e)
