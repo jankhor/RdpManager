@@ -1,12 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Windows;
+using MessageBox = System.Windows.MessageBox; // Explicitly use WPF MessageBox
 
 namespace RdpManager.ViewModels
 {
@@ -35,30 +34,66 @@ namespace RdpManager.ViewModels
 
         private void AddFolder()
         {
-            var dialog = new System.Windows.Forms.FolderBrowserDialog();
-            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            try
             {
-                if (!Settings.MonitoredFolders.Contains(dialog.SelectedPath))
+                var dialog = new System.Windows.Forms.FolderBrowserDialog();
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
-                    Settings.MonitoredFolders.Add(dialog.SelectedPath);
-                    OnPropertyChanged(nameof(Settings));
+                    var path = dialog.SelectedPath;
+                    if (Directory.Exists(path))
+                    {
+                        if (!Settings.MonitoredFolders.Contains(path))
+                        {
+                            Settings.MonitoredFolders.Add(path);
+                            OnPropertyChanged(nameof(Settings));
+                        }
+                        else
+                        {
+                            MessageBox.Show("This folder is already being monitored",
+                                "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error adding folder: {ex.Message}", 
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
+
         private void RemoveFolder(string? folder)
         {
-            if (folder != null && Settings.MonitoredFolders.Contains(folder))
+            if (string.IsNullOrEmpty(folder)) return;
+    
+            try
             {
-                Settings.MonitoredFolders.Remove(folder);
-                OnPropertyChanged(nameof(Settings));
+                if (Settings.MonitoredFolders.Contains(folder))
+                {
+                    Settings.MonitoredFolders.Remove(folder);
+                    OnPropertyChanged(nameof(Settings));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error removing folder: {ex.Message}", 
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void Save()
         {
-            _settingsService.SaveSettings(Settings);
-            CloseWindow(true);
+            try
+            {
+                _settingsService.SaveSettings(Settings);
+                CloseWindow(true);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving settings: {ex.Message}", "Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void Cancel()
