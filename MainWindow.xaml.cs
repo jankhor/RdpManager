@@ -1,10 +1,9 @@
 ﻿using System.ComponentModel;
-using System.Drawing; // For Font, FontStyle
+using System.Drawing;
+using System.IO;
 using System.Windows;
 using System.Windows.Forms;
 using Application = System.Windows.Application;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace RdpManager
 {
@@ -30,10 +29,6 @@ namespace RdpManager
                 ContextMenuStrip = new ContextMenuStrip()
             };
 
-            RefreshTrayMenu();
-            
-            _notifyIcon.DoubleClick += (s, e) => ShowConnectionsMenu();
-            
             // Handle left mouse click
             _notifyIcon.MouseClick += (s, e) => 
             {
@@ -42,6 +37,8 @@ namespace RdpManager
                     ShowConnectionsMenu();
                 }
             };
+
+            RefreshTrayMenu();
         }
 
         private void RefreshTrayMenu()
@@ -50,22 +47,39 @@ namespace RdpManager
             
             _notifyIcon.ContextMenuStrip.Items.Clear();
 
-            // Group connections by folder
-            var groupedConnections = _viewModel.Connections
-                .GroupBy(c => System.IO.Path.GetDirectoryName(c.FilePath) ?? "Other")
+            // Get all connections with valid paths
+            var validConnections = _viewModel.Connections
+                .Where(c => !string.IsNullOrEmpty(c.FilePath))
+                .ToList();
+
+            // Add root-level connections first
+            foreach (var connection in validConnections.Where(c => 
+                string.IsNullOrEmpty(Path.GetDirectoryName(c.FilePath)) || 
+                Path.GetDirectoryName(c.FilePath) == Path.GetPathRoot(c.FilePath)))
+            {
+                AddConnectionToMenu(connection);
+            }
+
+            // Group remaining connections by immediate parent folder
+            var groupedConnections = validConnections
+                .Where(c => 
+                {
+                    var dir = Path.GetDirectoryName(c.FilePath);
+                    return !string.IsNullOrEmpty(dir) && dir != Path.GetPathRoot(c.FilePath);
+                })
+                .GroupBy(c => Path.GetFileName(Path.GetDirectoryName(c.FilePath)))
                 .OrderBy(g => g.Key);
 
+            // Add grouped connections
             foreach (var group in groupedConnections)
             {
-                // If only one item in folder, add directly
                 if (group.Count() == 1)
                 {
-                    var connection = group.First();
-                    AddConnectionToMenu(connection);
+                    AddConnectionToMenu(group.First());
                 }
-                else // Create submenu for folder
+                else
                 {
-                    var folderMenu = new ToolStripMenuItem(System.IO.Path.GetFileName(group.Key));
+                    var folderMenu = new ToolStripMenuItem(group.Key);
                     foreach (var connection in group.OrderBy(c => c.DisplayName))
                     {
                         AddConnectionToMenu(connection, folderMenu);
@@ -74,10 +88,9 @@ namespace RdpManager
                 }
             }
 
-            // Add separator
+            // Add action items
             _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
             
-            // Add refresh option
             var refreshItem = new ToolStripMenuItem("Refresh");
             refreshItem.Click += (s, e) => {
                 _viewModel.LoadConnections();
@@ -85,23 +98,21 @@ namespace RdpManager
             };
             _notifyIcon.ContextMenuStrip.Items.Add(refreshItem);
             
-            // Add settings option
             var settingsItem = new ToolStripMenuItem("Settings");
             settingsItem.Click += (s, e) => _viewModel.OpenSettingsCommand.Execute(null);
             _notifyIcon.ContextMenuStrip.Items.Add(settingsItem);
             
-            // Add exit option
             var exitItem = new ToolStripMenuItem("Exit");
             exitItem.Click += (s, e) => Application.Current.Shutdown();
             _notifyIcon.ContextMenuStrip.Items.Add(exitItem);
         }
 
-        private void AddConnectionToMenu(RdpConnection connection, ToolStripMenuItem parentMenu = null)
+        private void AddConnectionToMenu(RdpConnection connection, ToolStripMenuItem? parentMenu = null)
         {
             var menuItem = new ToolStripMenuItem(
                 connection.IsFavorite ? $"★ {connection.DisplayName}" : connection.DisplayName);
             
-            // Add right-click to toggle favorite
+            // Right-click to toggle favorite
             menuItem.MouseUp += (s, e) => 
             {
                 if (e.Button == MouseButtons.Right)
@@ -115,21 +126,29 @@ namespace RdpManager
                 }
             };
 
-            // Bold font for favorites
+            // Bold font for favorites - using fully qualified FontStyle
             if (connection.IsFavorite)
             {
                 menuItem.Font = new Font(menuItem.Font, System.Drawing.FontStyle.Bold);
             }
 
             if (parentMenu != null)
+            {
                 parentMenu.DropDownItems.Add(menuItem);
+            }
             else
+            {
                 _notifyIcon?.ContextMenuStrip?.Items.Add(menuItem);
+            }
         }
 
         private void ShowConnectionsMenu()
         {
-            _notifyIcon?.ContextMenuStrip?.Show(Control.MousePosition);
+            if (_notifyIcon?.ContextMenuStrip != null)
+            {
+                // Using Control.MousePosition instead of Cursor.Position
+                _notifyIcon.ContextMenuStrip.Show(Control.MousePosition);
+            }
         }
 
         protected override void OnClosing(CancelEventArgs e)
