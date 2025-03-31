@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Drawing; // For Font, FontStyle
 using System.Windows;
 using System.Windows.Forms;
 using Application = System.Windows.Application;
@@ -21,7 +22,7 @@ namespace RdpManager
         {
             _notifyIcon = new NotifyIcon
             {
-                Icon = new System.Drawing.Icon("Resources/rdp_icon.ico"),
+                Icon = new Icon("Resources/rdp_icon.ico"),
                 Text = "RDP Manager",
                 Visible = true,
                 ContextMenuStrip = new ContextMenuStrip()
@@ -38,11 +39,20 @@ namespace RdpManager
             
             _notifyIcon.ContextMenuStrip.Items.Clear();
             
-            // Add connections
+            // Add connections with favorite indicators
             foreach (var connection in _viewModel.Connections)
             {
-                var menuItem = new ToolStripMenuItem(connection.DisplayName);
+                var menuItem = new ToolStripMenuItem(
+                    connection.IsFavorite ? $"★ {connection.DisplayName}" : connection.DisplayName);
+                
                 menuItem.Click += (s, e) => _viewModel.LaunchCommand.Execute(connection.FilePath);
+                
+                // Bold font for favorites
+                if (connection.IsFavorite)
+                {
+                    menuItem.Font = new Font(menuItem.Font, System.Drawing.FontStyle.Bold); // Fully qualified
+                }
+                
                 _notifyIcon.ContextMenuStrip.Items.Add(menuItem);
             }
 
@@ -72,7 +82,7 @@ namespace RdpManager
         {
             if (_notifyIcon?.ContextMenuStrip != null)
             {
-                // _notifyIcon.ContextMenuStrip.Show(Cursor.Position);
+                _notifyIcon.ContextMenuStrip.Show(Control.MousePosition);
             }
         }
 
