@@ -1,44 +1,45 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using RdpManager.Views;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 
-namespace RdpManager
+namespace RdpManager.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
         private readonly RdpFileService _rdpService;
         private readonly SettingsService _settingsService;
-        private AppSettings _settings;
 
         [ObservableProperty]
         private ObservableCollection<RdpConnection> _connections = new();
 
         [ObservableProperty]
-        private string _searchText = string.Empty;
+        private AppSettings _settings; // This will generate a public Settings property
 
         public IRelayCommand<string> LaunchCommand { get; }
         public IRelayCommand<string> ToggleFavoriteCommand { get; }
         public IRelayCommand OpenSettingsCommand { get; }
+        public IRelayCommand RefreshCommand { get; }
 
         public MainViewModel()
         {
             _rdpService = new RdpFileService();
             _settingsService = new SettingsService();
-            _settings = _settingsService.LoadSettings();
+            Settings = _settingsService.LoadSettings(); // Use the generated property
 
             LaunchCommand = new RelayCommand<string>(LaunchRdp);
             ToggleFavoriteCommand = new RelayCommand<string>(ToggleFavorite);
             OpenSettingsCommand = new RelayCommand(OpenSettings);
+            RefreshCommand = new RelayCommand(LoadConnections);
 
             LoadConnections();
         }
 
         public void LoadConnections()
         {
-            var connections = _rdpService.FindRdpFiles(_settings.MonitoredFolders);
+            var connections = _rdpService.FindRdpFiles(Settings.MonitoredFolders); // Use Settings property
 
-            var sortedConnections = _settings.ShowRecentFirst
+            var sortedConnections = Settings.ShowRecentFirst // Use Settings property
                 ? connections.OrderByDescending(c => c.LastUsed)
                             .ThenByDescending(c => c.IsFavorite)
                             .ThenBy(c => c.DisplayName)
@@ -67,10 +68,10 @@ namespace RdpManager
 
         private void OpenSettings()
         {
-            var settingsWindow = new SettingsWindow();
+            var settingsWindow = new Views.SettingsWindow();
             if (settingsWindow.ShowDialog() == true)
             {
-                _settings = _settingsService.LoadSettings();
+                Settings = _settingsService.LoadSettings(); // Use Settings property
                 LoadConnections();
             }
         }
