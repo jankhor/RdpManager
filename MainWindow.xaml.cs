@@ -3,7 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows;
-using System.Windows.Forms;
+// using System.Windows.Forms;
 using Application = System.Windows.Application;
 using RdpManager.ViewModels;  // Add this using directive
 
@@ -43,83 +43,84 @@ namespace RdpManager
             RefreshTrayMenu();
         }
 
-        private void RefreshTrayMenu()
+        private void RefreshTrayMenu( )
         {
              if (_notifyIcon?.ContextMenuStrip == null) return;
     
             _notifyIcon.ContextMenuStrip.Items.Clear();
 
-            // Use the Settings property instead of _settings
-            if (_viewModel.Settings?.MonitoredFolders == null) return;
+            // Color definitions
+            // var folderColor = Color.FromArgb(240, 240, 240);  // Light gray for folders
+            var folderColor = Color.Blue;
+            var folderBgColor = Color.Yellow;
+            var fileColor = Color.White;  // White for files
 
-            // Build menu structure starting from monitored folders
             foreach (var monitoredFolder in _viewModel.Settings.MonitoredFolders)
             {
-                var folderName = Path.GetFileName(monitoredFolder);
-                if (string.IsNullOrEmpty(folderName))
-                    folderName = monitoredFolder; // Fallback for root folders
-
                 var folderConnections = _viewModel.Connections
                     .Where(c => c.FilePath.StartsWith(monitoredFolder))
                     .ToList();
 
-                if (folderConnections.Count == 0)
-                    continue;
+                if (!folderConnections.Any()) continue;
 
-                // Create menu item for this monitored folder
-                var folderMenuItem = new ToolStripMenuItem(folderName);
+                // Get connections directly in monitored folder (no subfolders)
+                var rootConnections = folderConnections
+                    .Where(c => Path.GetDirectoryName(c.FilePath) == monitoredFolder)
+                    .OrderBy(c => c.DisplayName);
 
-                // Build structure for this monitored folder
-                var relativeConnections = folderConnections
-                    .Select(c => new {
-                        Connection = c,
-                        RelativePath = c.FilePath.Substring(monitoredFolder.Length).TrimStart(Path.DirectorySeparatorChar)
-                    })
+                // Get connections in subfolders
+                var subfolderConnections = folderConnections
+                    .Where(c => Path.GetDirectoryName(c.FilePath) != monitoredFolder)
                     .ToList();
 
-                foreach (var item in relativeConnections.Where(x => string.IsNullOrEmpty(Path.GetDirectoryName(x.RelativePath))))
+                // Add connections directly in monitored folder
+                foreach (var connection in rootConnections)
                 {
-                    // Directly in monitored folder
-                    folderMenuItem.DropDownItems.Add(CreateConnectionMenuItem(item.Connection));
+                    var menuItem = CreateConnectionMenuItem(connection);
+                    menuItem.BackColor = fileColor;
+                    _notifyIcon.ContextMenuStrip.Items.Add(menuItem);
                 }
 
                 // Group by subfolders
-                var subfolderGroups = relativeConnections
-                    .Where(x => !string.IsNullOrEmpty(Path.GetDirectoryName(x.RelativePath)))
-                    .GroupBy(x => x.RelativePath.Split(Path.DirectorySeparatorChar)[0])
+                var subfolderGroups = subfolderConnections
+                    .GroupBy(c => 
+                    {
+                        var relativePath = c.FilePath.Substring(monitoredFolder.Length).TrimStart('\\');
+                        return relativePath.Split('\\').First();
+                    })
                     .OrderBy(g => g.Key);
+
+
+                Font folderFont;
+
+                if (System.Drawing.SystemFonts.MenuFont != null) {
+                    folderFont = new Font( System.Drawing.SystemFonts.MenuFont.FontFamily, 9f, System.Drawing.FontStyle.Bold);
+                } else {
+                    // Fallback font if MenuFont is null
+                    folderFont = new Font("Segoe UI", 9f, System.Drawing.FontStyle.Bold);
+                }
 
                 foreach (var group in subfolderGroups)
                 {
-                    var subfolderItem = new ToolStripMenuItem(group.Key);
-                    folderMenuItem.DropDownItems.Add(subfolderItem);
-
-                    foreach (var item in group)
+                    var folderItem = new ToolStripMenuItem(group.Key)
                     {
-                        var pathParts = item.RelativePath.Split(Path.DirectorySeparatorChar);
-                        var currentMenu = subfolderItem;
+                        BackColor = folderBgColor,
+                        ForeColor = folderColor,
+                        Font = folderFont
 
-                        // Handle nested subfolders
-                        for (int i = 1; i < pathParts.Length - 1; i++)
-                        {
-                            var existing = currentMenu.DropDownItems
-                                .OfType<ToolStripMenuItem>()
-                                .FirstOrDefault(m => m.Text == pathParts[i]);
+                        //Font = new System.Drawing.Font (System.Drawing.Font, FontStyle.Bold)
+                        // Font = new Font(ToolStripMenuItem.Font, System.Drawing.FontStyle.Bold);
+                    };
 
-                            if (existing == null)
-                            {
-                                existing = new ToolStripMenuItem(pathParts[i]);
-                                currentMenu.DropDownItems.Add(existing);
-                            }
-                            currentMenu = existing;
-                        }
-
-                        // Add the connection
-                        currentMenu.DropDownItems.Add(CreateConnectionMenuItem(item.Connection));
+                    foreach (var connection in group.OrderBy(c => c.DisplayName))
+                    {
+                        var menuItem = CreateConnectionMenuItem(connection);
+                        menuItem.BackColor = fileColor;
+                        folderItem.DropDownItems.Add(menuItem);
                     }
-                }
 
-                _notifyIcon.ContextMenuStrip.Items.Add(folderMenuItem);
+                    _notifyIcon.ContextMenuStrip.Items.Add(folderItem);
+                }
             }
 
             // Add action items
