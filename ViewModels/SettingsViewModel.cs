@@ -13,7 +13,7 @@ namespace RdpManager.ViewModels
     public partial class SettingsViewModel : ObservableObject
     {
         private readonly SettingsService _settingsService;
-        
+
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(MonitoredFolders))]
         private AppSettings _settings;
@@ -73,7 +73,7 @@ namespace RdpManager.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving settings: {ex.Message}", 
+                MessageBox.Show($"Error saving settings: {ex.Message}",
                     "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -87,7 +87,7 @@ namespace RdpManager.ViewModels
         {
             foreach (System.Windows.Window window in System.Windows.Application.Current.Windows)
             {
-                if (window is Views.SettingsWindow settingsWindow && 
+                if (window is Views.SettingsWindow settingsWindow &&
                     settingsWindow.DataContext == this)
                 {
                     settingsWindow.DialogResult = dialogResult;

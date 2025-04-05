@@ -20,7 +20,7 @@ namespace RdpManager
             Directory.CreateDirectory(_appDataPath);
         }
 
-        public List<RdpConnection> FindRdpFiles(List<string> folders)
+        public List<RdpConnection> FindRdpFiles(System.Collections.ObjectModel.ObservableCollection<string> folders)
         {
             var connections = new List<RdpConnection>();
             
