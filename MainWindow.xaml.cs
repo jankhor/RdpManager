@@ -54,20 +54,24 @@ namespace RdpManager
 
         private void SetupSystemTray()
         {
-            _notifyIcon = new NotifyIcon
-            {
+
+            ContextMenuStrip _trayMenu = new ContextMenuStrip();
+
+            _notifyIcon = new NotifyIcon {
                 Icon = new Icon("Resources/rdp_tray.ico"),
                 Text = "RDP Manager",
                 Visible = true,
-                ContextMenuStrip = new ContextMenuStrip()
+                ContextMenuStrip = _trayMenu
             };
 
 
-            _notifyIcon.MouseClick += (s, e) => 
-            {
-                if (e.Button == MouseButtons.Left)
-                {
-                    ShowConnectionsMenu();
+            _notifyIcon.MouseClick += (s, e) => {
+                if (e.Button == MouseButtons.Left) {
+                    if (_trayMenu != null && _trayMenu.Visible ) {
+                        _trayMenu.Visible = false;
+                    } else {
+                        ShowConnectionsMenu();
+                    }
                 }
             };
 
