@@ -1,7 +1,5 @@
-namespace RdpManager
-{
-    public class RdpConnection
-    {
+namespace RdpManager {
+    public class RdpConnection {
         public string FilePath { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public string? FolderPath { get; set; }

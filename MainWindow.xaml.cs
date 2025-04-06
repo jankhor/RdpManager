@@ -24,13 +24,13 @@ namespace RdpManager {
 
         public MainWindow() {
             string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RdpManager");
-            var     logFile = Path.Combine(appDataPath, "rdpManager.log");
+            var     logFile = Path.Combine(appDataPath, "logs/rdpManager.log");
 
             Log.Logger = new LoggerConfiguration().MinimumLevel.Debug()
                 .Enrich.FromLogContext()  // REQUIRED for LogContext properties
                 .WriteTo.Console()
                 .WriteTo.File(logFile, rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7,
-                         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}.{Method}: {Message:lj}{NewLine}{Exception}"
+                         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {SourceContext}.{Method}: {Message:lj}{NewLine}{Exception}"
                 ).CreateLogger();
 
             _logger = Log.ForContext<MainWindow>();
@@ -67,6 +67,8 @@ namespace RdpManager {
             SetupSystemTray();
         }
 
+        //****************************************************************************************************************************
+        //****************************************************************************************************************************
         private void SetupSystemTray() {
             ContextMenuStrip _trayMenu = new ContextMenuStrip();
 
@@ -91,12 +93,42 @@ namespace RdpManager {
             RefreshTrayMenu();
         }
 
+        //****************************************************************************************************************************
+        //****************************************************************************************************************************
         private void RefreshTrayMenu( ) {
-             if (_notifyIcon?.ContextMenuStrip == null) {
+            if (_notifyIcon?.ContextMenuStrip == null) {
                  return;
-             }
+            }
     
             _notifyIcon.ContextMenuStrip.Items.Clear();
+
+            //******************************************
+            // Build the Menu Structure
+            //******************************************
+            buildMenu();
+
+            // Add action items
+            _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
+
+            var refreshItem = new ToolStripMenuItem("Refresh");
+            refreshItem.Click += (s, e) => {
+                _viewModel.LoadConnections();
+                RefreshTrayMenu();
+            };
+            _notifyIcon.ContextMenuStrip.Items.Add(refreshItem);
+
+            var settingsItem = new ToolStripMenuItem("Settings");
+            settingsItem.Click += (s, e) => _viewModel.OpenSettingsCommand.Execute(null);
+            _notifyIcon.ContextMenuStrip.Items.Add(settingsItem);
+
+            var exitItem = new ToolStripMenuItem("Exit");
+            exitItem.Click += (s, e) => Application.Current.Shutdown();
+            _notifyIcon.ContextMenuStrip.Items.Add(exitItem);
+        }
+
+        //****************************************************************************************************************************
+        //****************************************************************************************************************************
+        private void buildMenu() {
 
             // Color definitions
             // var folderColor = Color.FromArgb(240, 240, 240);  // Light gray for folders
@@ -105,110 +137,116 @@ namespace RdpManager {
 
             using (LogContext.PushProperty("Method", nameof(RefreshTrayMenu))) {
 
-                _logger.Debug("Settings: {@Settings} ", _viewModel.Settings);
-                _logger.Debug("MonitoredFolders: {MonitoredFolders} ", _viewModel.Settings.MonitoredFolders);
+                _logger.Debug("Settings - {@Settings} ", _viewModel.Settings);
+                _logger.Debug("MonitoredFolders - {@MonitoredFolders} ", _viewModel.Settings.MonitoredFolders);
 
+
+                //*****************************************************************************************************************
+                //* For each monitored folder in MonitoredFolders list
+                //*****************************************************************************************************************
                 foreach (var monitoredFolder in _viewModel.Settings.MonitoredFolders) {
-                    _logger.Debug("monitoredFolder: {MonitoredFolders}:", monitoredFolder);
-                    var folderConnections = _viewModel.Connections.Where(c => c.FilePath.StartsWith(monitoredFolder)).ToList();
 
-                    // If no connection file found
-                    if (!folderConnections.Any()) {
-                        continue;
-                    }
+                    //**************************************************************************
+                    //* Single monitored folder, add the connections to to the root and add sub-folders
+                    //**************************************************************************
+                    if (_viewModel.Settings.MonitoredFolders.Count == 1) {
+                        _logger.Debug("Single monitored folders add to root -  {@MonitoredFolders}", monitoredFolder);
 
+                        //-------------------------------------------------------------------------------
+                        //- Call AddConnectionToMenuRecursive, and provide null as the parent.  
+                        //-  AddConnectionToMenuRecursive will check and add to the ContextMenuStrip
+                        // -------------------------------------------------------------------------------
+                        AddConnectionToMenuRecursive (null, monitoredFolder);
+                    } 
+                    //**************************************************************************
+                    //* Two or more monitored folder, create a folder for each monitored folder
+                    //* to group the connections under.
+                    //**************************************************************************
+                    else if (_viewModel.Settings.MonitoredFolders.Count > 1) {
+                        string monitoredFolderName = Path.GetFileName(monitoredFolder);
+                        _logger.Debug("Multiple monitored folders, group by folder name", monitoredFolderName);
 
-                    _logger.Debug("folderConnections: {List}:", folderConnections);
+                        var folderItem = new ToolStripMenuItem(monitoredFolderName) { Font = folderFont, Image = folderImage};
 
+                        // -------------------------------------------------------------------------------
+                        // Call AddConnectionToMenuRecursive, and provide the folderItem as the parent.
+                        // -------------------------------------------------------------------------------
+                        AddConnectionToMenuRecursive (folderItem, monitoredFolder);
 
-
-
-
-
-
-                    //****************************************************************************************************************
-                    // Get connections directly in monitored folder (no subfolders)
-                    //****************************************************************************************************************
-                    var rootConnections = folderConnections.Where(c => Path.GetDirectoryName(c.FilePath) == monitoredFolder).OrderBy(c => c.DisplayName);
-
-                    // Get connections in subfolders
-                    var subfolderConnections = folderConnections.Where( c => Path.GetDirectoryName(c.FilePath) != monitoredFolder).ToList();
-
-                    //************************************************************
-                    // Add connections directly in monitored folder
-                    //************************************************************
-                    foreach (var connection in rootConnections) {
-                        var menuItem = CreateConnectionMenuItem(connection);
-                        _notifyIcon.ContextMenuStrip.Items.Add(menuItem);
-                    }
-
-                    // Group by subfolders
-                    var subfolderGroups = subfolderConnections.GroupBy(c => {
-                            var relativePath = c.FilePath.Substring(monitoredFolder.Length).TrimStart('\\');
-                            return relativePath.Split('\\').First();
-                            }).OrderBy(g => g.Key);
-
-                    // Create a ToolStripMenuItem for each folder
-                    foreach (var group in subfolderGroups) {
-                        var folderItem = new ToolStripMenuItem(group.Key) {
-                            // BackColor = folderBgColor,
-                            ForeColor = folderColor,
-                                      Font = folderFont,
-                                      Image = folderImage
-                        };
-
-                        // For each connection, add to the folderItem
-                        foreach (var connection in group.OrderBy(c => c.DisplayName)) {
-                            var menuItem = CreateConnectionMenuItem(connection);
-                            folderItem.DropDownItems.Add(menuItem);
-                        }
-
-                        // Add the folder to the Systemtray.menu
-                        _notifyIcon.ContextMenuStrip.Items.Add(folderItem);
+                        _notifyIcon?.ContextMenuStrip?.Items.Add(folderItem);
                     }
                 }
-
-                // Add action items
-                _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
-
-                var refreshItem = new ToolStripMenuItem("Refresh");
-                refreshItem.Click += (s, e) => {
-                    _viewModel.LoadConnections();
-                    RefreshTrayMenu();
-                };
-                _notifyIcon.ContextMenuStrip.Items.Add(refreshItem);
-
-                var settingsItem = new ToolStripMenuItem("Settings");
-                settingsItem.Click += (s, e) => _viewModel.OpenSettingsCommand.Execute(null);
-                _notifyIcon.ContextMenuStrip.Items.Add(settingsItem);
-
-                var exitItem = new ToolStripMenuItem("Exit");
-                exitItem.Click += (s, e) => Application.Current.Shutdown();
-                _notifyIcon.ContextMenuStrip.Items.Add(exitItem);
             }
         }
 
-        private ToolStripMenuItem CreateConnectionMenuItem(RdpConnection connection)
-        {
-            var menuItem = new ToolStripMenuItem(connection.IsFavorite ? $"★ {connection.DisplayName}" : connection.DisplayName);
-            
-            menuItem.MouseUp += (s, e) => {
-                if (e.Button == MouseButtons.Right) {
-                    _viewModel.ToggleFavoriteCommand.Execute(connection.FilePath);
-                    RefreshTrayMenu();
-                } else if (e.Button == MouseButtons.Left) {
-                    _viewModel.LaunchCommand.Execute(connection.FilePath);
+        private void AddConnectionToMenuRecursive (ToolStripMenuItem? parentMenu, String folder) {
+            using (LogContext.PushProperty("Method", nameof(RefreshTrayMenu))) {
+
+                _logger.Debug("Add connections (" + folder + ")");
+
+                //************************************************************
+                // Any connections under the current folder
+                //************************************************************
+                var anyConnections = _viewModel.Connections.Where(c => c.FilePath.StartsWith(folder)).ToList();
+                if (anyConnections.Count == 0) {
+                    return;
                 }
-            };
 
-            if (connection.IsFavorite) {
-                menuItem.Font = new Font(menuItem.Font, System.Drawing.FontStyle.Bold);
+                var folderConnections = _viewModel.Connections.Where(c => Path.GetDirectoryName(c.FilePath) == folder).OrderBy(c => c.DisplayName).ToList();
+                _logger.Debug("folderConnections {@Connections}", folderConnections);
+
+                //************************************************************
+                // Add connections 
+                //************************************************************
+                ToolStripMenuItem? menuItem = null;
+                foreach (var connection in folderConnections) {
+                    menuItem = new ToolStripMenuItem(connection.IsFavorite ? $"★ {connection.DisplayName}" : connection.DisplayName);
+                    menuItem.Image = connectionImage;
+
+                    if (connection.IsFavorite) {
+                        menuItem.Font = new Font(menuItem.Font, System.Drawing.FontStyle.Bold);
+                    }
+
+                    menuItem.MouseUp += (s, e) => {
+                        if (e.Button == MouseButtons.Right) {
+                            _viewModel.ToggleFavoriteCommand.Execute(connection.FilePath);
+                            RefreshTrayMenu();
+                        } else if (e.Button == MouseButtons.Left) {
+                            _viewModel.LaunchCommand.Execute(connection.FilePath);
+                        }
+                    };
+
+                    if (parentMenu != null) {
+                        parentMenu.DropDownItems.Add(menuItem);
+                    } else {
+                        _notifyIcon?.ContextMenuStrip?.Items.Add(menuItem);
+                    }
+                }
+
+                //************************************************************
+                // Process subfolders
+                //************************************************************
+                foreach (string subFolder in Directory.GetDirectories(folder)) {
+                    menuItem = new ToolStripMenuItem( Path.GetFileName(subFolder));
+                    anyConnections = _viewModel.Connections.Where(c => c.FilePath.StartsWith(folder)).ToList();
+                    if (anyConnections.Count == 0) {
+                        continue;
+                    }
+
+                    _logger.Debug("     subFolder - "+ subFolder);
+
+                    menuItem = new ToolStripMenuItem( Path.GetFileName(subFolder));
+                    menuItem.Image = folderImage;
+
+                    if (parentMenu != null) {
+                        parentMenu.DropDownItems.Add(menuItem);
+                    } else {
+                        _notifyIcon?.ContextMenuStrip?.Items.Add(menuItem);
+                    }
+
+                    AddConnectionToMenuRecursive (menuItem, subFolder);
+                }
             }
-
-            menuItem.BackColor = Color.White;
-            menuItem.Image = connectionImage;
-
-            return menuItem;
         }
 
         private void ShowConnectionsMenu() {

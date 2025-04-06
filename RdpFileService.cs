@@ -12,22 +12,18 @@ namespace RdpManager
         private const string RecentFileName = "recent.json";
         private readonly string _appDataPath;
 
-        public RdpFileService()
-        {
+        public RdpFileService() {
             _appDataPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "RdpManager");
             Directory.CreateDirectory(_appDataPath);
         }
 
-        public List<RdpConnection> FindRdpFiles(System.Collections.ObjectModel.ObservableCollection<string> folders)
-        {
+        public List<RdpConnection> FindRdpFiles(System.Collections.ObjectModel.ObservableCollection<string> folders) {
             var connections = new List<RdpConnection>();
             
-            foreach (var folder in folders.Where(Directory.Exists))
-            {
-                try
-                {
+            foreach (var folder in folders.Where(Directory.Exists)) {
+                try {
                     var files = Directory.GetFiles(folder, "*.rdp", SearchOption.AllDirectories);
                     connections.AddRange(files.Select(file => new RdpConnection
                     {
@@ -42,8 +38,7 @@ namespace RdpManager
             var favorites = LoadFavorites();
             var recent = LoadRecentConnections();
 
-            foreach (var conn in connections)
-            {
+            foreach (var conn in connections) {
                 conn.IsFavorite = favorites.Contains(conn.FilePath);
                 conn.LastUsed = recent.TryGetValue(conn.FilePath, out var date) ? date : DateTime.MinValue;
             }
@@ -51,57 +46,49 @@ namespace RdpManager
             return connections;
         }
 
-        public void LaunchRdpFile(string filePath)
-        {
-            try
-            {
+        public void LaunchRdpFile(string filePath) {
+            try {
                 Process.Start("mstsc.exe", $"/f \"{filePath}\"");
                 UpdateRecentConnection(filePath);
-            }
-            catch { /* Handle errors */ }
+            } catch { /* Handle errors */ }
         }
 
-        public void ToggleFavorite(string filePath)
-        {
+        public void ToggleFavorite(string filePath) {
             var favorites = LoadFavorites();
-            if (favorites.Contains(filePath))
+            if (favorites.Contains(filePath)) {
                 favorites.Remove(filePath);
-            else
+            } else {
                 favorites.Add(filePath);
+            }
             SaveFavorites(favorites);
         }
 
-        private HashSet<string> LoadFavorites()
-        {
+        private HashSet<string> LoadFavorites() {
             var path = Path.Combine(_appDataPath, FavoritesFileName);
             return File.Exists(path) 
                 ? JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(path)) ?? new HashSet<string>()
                 : new HashSet<string>();
         }
 
-        private Dictionary<string, DateTime> LoadRecentConnections()
-        {
+        private Dictionary<string, DateTime> LoadRecentConnections() {
             var path = Path.Combine(_appDataPath, RecentFileName);
             return File.Exists(path)
                 ? JsonSerializer.Deserialize<Dictionary<string, DateTime>>(File.ReadAllText(path)) ?? new Dictionary<string, DateTime>()
                 : new Dictionary<string, DateTime>();
         }
 
-        private void UpdateRecentConnection(string filePath)
-        {
+        private void UpdateRecentConnection(string filePath) {
             var recent = LoadRecentConnections();
             recent[filePath] = DateTime.Now;
             SaveRecentConnections(recent);
         }
 
-        private void SaveFavorites(HashSet<string> favorites)
-        {
+        private void SaveFavorites(HashSet<string> favorites) {
             var path = Path.Combine(_appDataPath, FavoritesFileName);
             File.WriteAllText(path, JsonSerializer.Serialize(favorites));
         }
 
-        private void SaveRecentConnections(Dictionary<string, DateTime> recent)
-        {
+        private void SaveRecentConnections(Dictionary<string, DateTime> recent) {
             var path = Path.Combine(_appDataPath, RecentFileName);
             File.WriteAllText(path, JsonSerializer.Serialize(recent));
         }

@@ -21,8 +21,7 @@ namespace RdpManager.ViewModels
         public IRelayCommand OpenSettingsCommand { get; }
         public IRelayCommand RefreshCommand { get; }
 
-        public MainViewModel()
-        {
+        public MainViewModel() {
             _rdpService = new RdpFileService();
             _settingsService = new SettingsService();
             Settings = _settingsService.LoadSettings(); // Use the generated property
@@ -35,8 +34,7 @@ namespace RdpManager.ViewModels
             LoadConnections();
         }
 
-        public void LoadConnections()
-        {
+        public void LoadConnections() {
             var connections = _rdpService.FindRdpFiles(Settings.MonitoredFolders); // Use Settings property
 
             var sortedConnections = Settings.ShowRecentFirst // Use Settings property
