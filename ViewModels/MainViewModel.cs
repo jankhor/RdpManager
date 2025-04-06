@@ -47,28 +47,22 @@ namespace RdpManager.ViewModels
             Connections = new ObservableCollection<RdpConnection>(sortedConnections);
         }
 
-        private void LaunchRdp(string? filePath)
-        {
-            if (!string.IsNullOrWhiteSpace(filePath))
-            {
+        private void LaunchRdp(string? filePath) {
+            if (!string.IsNullOrWhiteSpace(filePath)) {
                 _rdpService.LaunchRdpFile(filePath);
             }
         }
 
-        private void ToggleFavorite(string? filePath)
-        {
-            if (!string.IsNullOrWhiteSpace(filePath))
-            {
+        private void ToggleFavorite(string? filePath) {
+            if (!string.IsNullOrWhiteSpace(filePath)) {
                 _rdpService.ToggleFavorite(filePath);
                 LoadConnections();
             }
         }
 
-        private void OpenSettings()
-        {
+        private void OpenSettings() {
             var settingsWindow = new Views.SettingsWindow();
-            if (settingsWindow.ShowDialog() == true)
-            {
+            if (settingsWindow.ShowDialog() == true) {
                 Settings = _settingsService.LoadSettings(); // Use Settings property
                 LoadConnections();
             }

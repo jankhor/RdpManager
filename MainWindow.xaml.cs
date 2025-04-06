@@ -3,9 +3,9 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows;
-// using System.Windows.Forms;
 using Application = System.Windows.Application;
 using RdpManager.ViewModels;  // Add this using directive
+using RdpManager.Views;
 using System.Reflection; // Required for Assembly
 using Serilog;
 using Serilog.Sinks.File;  // Add this for RollingInterval
@@ -120,6 +120,15 @@ namespace RdpManager {
             var settingsItem = new ToolStripMenuItem("Settings");
             settingsItem.Click += (s, e) => _viewModel.OpenSettingsCommand.Execute(null);
             _notifyIcon.ContextMenuStrip.Items.Add(settingsItem);
+
+            var aboutItem = new ToolStripMenuItem("About");
+            aboutItem.Click += (s, e) => {
+                var aboutDialog = new AboutDialog();
+                aboutDialog.Owner = this;
+                aboutDialog.ShowInTaskbar = false; // For system tray consistency
+                aboutDialog.ShowDialog();
+            };
+            _notifyIcon.ContextMenuStrip.Items.Add(aboutItem);
 
             var exitItem = new ToolStripMenuItem("Exit");
             exitItem.Click += (s, e) => Application.Current.Shutdown();
