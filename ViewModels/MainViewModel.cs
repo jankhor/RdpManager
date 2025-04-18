@@ -67,5 +67,9 @@ namespace RdpManager.ViewModels
                 LoadConnections();
             }
         }
+
+        public void Dispose() {
+            ShortcutParser.ClearCache();
+        }
     }
 }

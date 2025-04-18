@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Windows;
 
 namespace RdpManager
 {
@@ -25,14 +26,28 @@ namespace RdpManager
             foreach (var folder in folders.Where(Directory.Exists)) {
                 try {
                     var files = Directory.GetFiles(folder, "*.rdp", SearchOption.AllDirectories);
-                    connections.AddRange(files.Select(file => new RdpConnection
-                    {
+                    connections.AddRange(files.Select(file => new RdpConnection {
                         FilePath = file,
                         DisplayName = Path.GetFileNameWithoutExtension(file),
                         FolderPath = Path.GetDirectoryName(file)
                     }));
+
+                    files = Directory.GetFiles(folder, "*.url", SearchOption.AllDirectories);
+                    connections.AddRange(files.Select(file => new RdpConnection {
+                        FilePath = file,
+                        DisplayName = Path.GetFileNameWithoutExtension(file),
+                        FolderPath = Path.GetDirectoryName(file)
+                    }));
+
+                    files = Directory.GetFiles(folder, "*.lnk", SearchOption.AllDirectories);
+                    connections.AddRange(files.Select(file => new RdpConnection {
+                        FilePath = file,
+                        DisplayName = Path.GetFileNameWithoutExtension(file),
+                        FolderPath = Path.GetDirectoryName(file)
+                    }));
+                } catch { 
+                    /* Skip unauthorized folders */ 
                 }
-                catch { /* Skip unauthorized folders */ }
             }
 
             var favorites = LoadFavorites();
@@ -48,9 +63,16 @@ namespace RdpManager
 
         public void LaunchRdpFile(string filePath) {
             try {
-                Process.Start("mstsc.exe", $"/f \"{filePath}\"");
+                if (filePath.EndsWith(".rdp")) {
+                    Process.Start("mstsc.exe", $"/f \"{filePath}\"");
+                } else if (filePath.EndsWith(".lnk") || filePath.EndsWith(".url")) {
+                    Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+                }
+
                 UpdateRecentConnection(filePath);
-            } catch { /* Handle errors */ }
+            } catch (Exception ex) { 
+                System.Windows.MessageBox.Show($"Failed to open: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         public void ToggleFavorite(string filePath) {

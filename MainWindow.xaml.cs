@@ -19,6 +19,8 @@ namespace RdpManager {
         private Font? folderFont=null;
         private Image? folderImage=null;
         private Image? connectionImage=null;
+        private Image? webImage=null;
+        private Image? defaultScImage=null;
 
         private readonly ILogger _logger;
 
@@ -35,6 +37,9 @@ namespace RdpManager {
 
             _logger = Log.ForContext<MainWindow>();
 
+            _logger.Debug ("=====================================================================================");
+            _logger.Debug ("===                                 Start                                         ===");
+            _logger.Debug ("=====================================================================================");
             InitializeComponent();
 
             if (System.Drawing.SystemFonts.MenuFont != null) {
@@ -61,6 +66,17 @@ namespace RdpManager {
                 if (File.Exists(imagePath)) {
                     connectionImage = Image.FromFile(imagePath); // Works with relative path
                 } 
+
+                imagePath = Path.Combine(exeDir, "Resources", "web.ico");
+                if (File.Exists(imagePath)) {
+                    webImage = Image.FromFile(imagePath); // Works with relative path
+                } 
+
+                imagePath = Path.Combine(exeDir, "Resources", "shortcut.ico");
+                if (File.Exists(imagePath)) {
+                    defaultScImage = Image.FromFile(imagePath); // Works with relative path
+                } 
+
             }
 
             _viewModel = new MainViewModel();
@@ -191,7 +207,7 @@ namespace RdpManager {
         private void AddConnectionToMenuRecursive (ToolStripMenuItem? parentMenu, String folder) {
             using (LogContext.PushProperty("Method", nameof(RefreshTrayMenu))) {
 
-                _logger.Debug("Add connections (" + folder + ")");
+                _logger.Debug("****** Add connections ******* (" + folder + ")");
 
                 //************************************************************
                 // Any connections under the current folder
@@ -202,7 +218,9 @@ namespace RdpManager {
                 }
 
                 var folderConnections = _viewModel.Connections.Where(c => Path.GetDirectoryName(c.FilePath) == folder).OrderBy(c => c.DisplayName).ToList();
-                _logger.Debug("folderConnections {@Connections}", folderConnections);
+                // _logger.Debug("----------------------------------------------------------------------------------------------------");
+                // _logger.Debug("folderConnections {@Connections}", folderConnections);
+                // _logger.Debug("----------------------------------------------------------------------------------------------------\n");
 
                 //************************************************************
                 // Add connections 
@@ -210,7 +228,28 @@ namespace RdpManager {
                 ToolStripMenuItem? menuItem = null;
                 foreach (var connection in folderConnections) {
                     menuItem = new ToolStripMenuItem(connection.IsFavorite ? $"★ {connection.DisplayName}" : connection.DisplayName);
-                    menuItem.Image = connectionImage;
+
+                    var filePath = connection.FilePath;
+
+                    if (filePath.EndsWith(".rdp")) {
+                        menuItem.Image = connectionImage;
+                    } else if (filePath.EndsWith(".url")) {
+                        menuItem.Image = webImage;
+                    } else if (filePath.EndsWith(".lnk")) {
+                        // Set the default icon
+                        menuItem.Image = defaultScImage;
+
+                        try {
+                            _logger.Debug ("** Loading shortcut icon " + filePath);
+                            var icon = ShortcutParser.ExtractFileIcon (filePath);
+                            if (icon != null) {
+                                menuItem.Image = icon.ToBitmap();
+                            }
+                        } catch (Exception ex) {
+                            _logger.Error ($"Icon extraction failed:", ex);
+                        }
+
+                    }
 
                     if (connection.IsFavorite) {
                         menuItem.Font = new Font(menuItem.Font, System.Drawing.FontStyle.Bold);
