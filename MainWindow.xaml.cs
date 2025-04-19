@@ -160,7 +160,7 @@ namespace RdpManager {
             var folderColor = Color.Blue;
             var folderBgColor = Color.Yellow;
 
-            using (LogContext.PushProperty("Method", nameof(RefreshTrayMenu))) {
+            using (LogContext.PushProperty("Method", nameof(buildMenu))) {
 
                 _logger.Debug("Settings - {@Settings} ", _viewModel.Settings);
                 _logger.Debug("MonitoredFolders - {@MonitoredFolders} ", _viewModel.Settings.MonitoredFolders);
@@ -205,8 +205,9 @@ namespace RdpManager {
         }
 
         private void AddConnectionToMenuRecursive (ToolStripMenuItem? parentMenu, String folder) {
-            using (LogContext.PushProperty("Method", nameof(RefreshTrayMenu))) {
+            using (LogContext.PushProperty("Method", nameof(AddConnectionToMenuRecursive))) {
 
+                _logger.Debug("-");
                 _logger.Debug("****** Add connections ******* (" + folder + ")");
 
                 //************************************************************
@@ -234,14 +235,20 @@ namespace RdpManager {
                     if (filePath.EndsWith(".rdp")) {
                         menuItem.Image = connectionImage;
                     } else if (filePath.EndsWith(".url")) {
-                        menuItem.Image = webImage;
+                        _logger.Debug ("** Loading shortcut icon (.url) " + filePath);
+                        var icon = ShortcutParser.ExtractIconFromShortcut (filePath);
+                        if (icon != null) {
+                            menuItem.Image = icon.ToBitmap();
+                        } else {
+                            menuItem.Image = webImage;
+                        }
                     } else if (filePath.EndsWith(".lnk")) {
                         // Set the default icon
                         menuItem.Image = defaultScImage;
 
                         try {
-                            _logger.Debug ("** Loading shortcut icon " + filePath);
-                            var icon = ShortcutParser.ExtractFileIcon (filePath);
+                            _logger.Debug ("** Loading shortcut icon (.lnk)" + filePath);
+                            var icon = ShortcutParser.ExtractIconFromShortcut (filePath);
                             if (icon != null) {
                                 menuItem.Image = icon.ToBitmap();
                             }
