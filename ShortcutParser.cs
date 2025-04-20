@@ -132,7 +132,10 @@ public static class ShortcutParser {
 
                 Icon? icon = null;
 
-                if (extension == ".lnk") { 
+                if (extension == ".rdp") { 
+                    _logger.Debug ("    RDP Shortcut points to: " + shortcutPath);
+                    icon = ExtractIconFromTargetPath (shortcutPath);
+                } else if (extension == ".lnk") {
                     _logger.Debug ("    LNK Shortcut points to: " + scTargetPath);
                     _logger.Debug ("    LNK Icon location: " + iconLocation);
 

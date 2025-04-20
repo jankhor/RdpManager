@@ -233,29 +233,23 @@ namespace RdpManager {
                     var filePath = connection.FilePath;
 
                     if (filePath.EndsWith(".rdp")) {
+                        // Set the default icon
                         menuItem.Image = connectionImage;
-                    } else if (filePath.EndsWith(".url")) {
-                        _logger.Debug ("** Loading shortcut icon (.url) " + filePath);
+                    } else {
+                        if (filePath.EndsWith(".url")) {
+                            // Set the default icon
+                            menuItem.Image = webImage;
+                        } else if (filePath.EndsWith(".lnk")) {
+                            // Set the default icon
+                            menuItem.Image = defaultScImage;
+                        }
+
+                        // Check if we have custom icon to override the default.
+                        _logger.Debug ("** Extract Icon from file" + filePath);
                         var icon = ShortcutParser.ExtractIconFromShortcut (filePath);
                         if (icon != null) {
                             menuItem.Image = icon.ToBitmap();
-                        } else {
-                            menuItem.Image = webImage;
                         }
-                    } else if (filePath.EndsWith(".lnk")) {
-                        // Set the default icon
-                        menuItem.Image = defaultScImage;
-
-                        try {
-                            _logger.Debug ("** Loading shortcut icon (.lnk)" + filePath);
-                            var icon = ShortcutParser.ExtractIconFromShortcut (filePath);
-                            if (icon != null) {
-                                menuItem.Image = icon.ToBitmap();
-                            }
-                        } catch (Exception ex) {
-                            _logger.Error ($"Icon extraction failed:", ex);
-                        }
-
                     }
 
                     if (connection.IsFavorite) {
