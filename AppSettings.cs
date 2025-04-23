@@ -14,5 +14,7 @@ namespace RdpManager
         public bool RunAtStartup { get; set; } = true;
         public bool ShowRecentFirst { get; set; } = true;
         public int MaxRecentItems { get; set; } = 10;
+        public bool UseCustomRdpIcon { get; set; } = false;
+        public string CustomRdpIconFile { get; set; } = "rdp.ico";
     }
 }

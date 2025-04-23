@@ -11,6 +11,7 @@ using Serilog;
 using Serilog.Sinks.File;  // Add this for RollingInterval
 using Serilog.Context;
 using System.Runtime.InteropServices;  // Add this line
+using MessageBox = System.Windows.MessageBox;
 
 namespace RdpManager {
     public partial class MainWindow : Window {
@@ -21,6 +22,9 @@ namespace RdpManager {
         private Image? connectionImage=null;
         private Image? webImage=null;
         private Image? defaultScImage=null;
+
+        // 1. Add this to prevent multiple instances
+        private static Mutex _mutex = new Mutex(true, "{8F6F0AC4-B9A1-45FD-A8CF-72F04E6BDE8F}");
 
         private readonly ILogger _logger;
 
@@ -36,6 +40,15 @@ namespace RdpManager {
                 ).CreateLogger();
 
             _logger = Log.ForContext<MainWindow>();
+            _viewModel = new MainViewModel();
+
+            // 2. Check for existing instance
+            if (!_mutex.WaitOne(TimeSpan.Zero, true)) {
+                MessageBox.Show("Another instance is already running");
+                Application.Current.Shutdown();
+                return;
+            }
+
 
             _logger.Debug ("=====================================================================================");
             _logger.Debug ("===                                 Start                                         ===");
@@ -83,7 +96,6 @@ namespace RdpManager {
 
             }
 
-            _viewModel = new MainViewModel();
             SetupSystemTray();
         }
 
@@ -253,6 +265,17 @@ namespace RdpManager {
                     if (filePath.EndsWith(".rdp")) {
                         // Set the default icon
                         menuItem.Image = connectionImage;
+
+                        // If not using the custom icon, then load the system default icon for RDP
+                        if (! _viewModel.Settings.UseCustomRdpIcon) {
+                            // Check if we have custom icon to override the default.
+                            _logger.Debug ("** Extract Icon from file" + filePath);
+                            var icon = ShortcutParser.ExtractIconFromShortcut (filePath);
+                            if (icon != null) {
+                                menuItem.Image = icon.ToBitmap();
+                            }
+                        }
+
                     } else {
                         if (filePath.EndsWith(".url")) {
                             // Set the default icon
@@ -317,6 +340,7 @@ namespace RdpManager {
         }
 
         protected override void OnClosing(CancelEventArgs e) {
+            _mutex.ReleaseMutex();
             _notifyIcon?.Dispose();
             base.OnClosing(e);
             Application.Current.Shutdown();
