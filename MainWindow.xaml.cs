@@ -10,7 +10,7 @@ using System.Reflection; // Required for Assembly
 using Serilog;
 using Serilog.Sinks.File;  // Add this for RollingInterval
 using Serilog.Context;
-
+using System.Runtime.InteropServices;  // Add this line
 
 namespace RdpManager {
     public partial class MainWindow : Window {
@@ -41,6 +41,10 @@ namespace RdpManager {
             _logger.Debug ("===                                 Start                                         ===");
             _logger.Debug ("=====================================================================================");
             InitializeComponent();
+
+            this.ShowInTaskbar = false;
+            this.WindowState = WindowState.Minimized;
+            this.Visibility = Visibility.Collapsed;
 
             if (System.Drawing.SystemFonts.MenuFont != null) {
                 folderFont = new Font( System.Drawing.SystemFonts.MenuFont.FontFamily, 9f, System.Drawing.FontStyle.Bold);
@@ -86,7 +90,11 @@ namespace RdpManager {
         //****************************************************************************************************************************
         //****************************************************************************************************************************
         private void SetupSystemTray() {
-            ContextMenuStrip _trayMenu = new ContextMenuStrip();
+            ContextMenuStrip _trayMenu = new ContextMenuStrip {
+                AutoClose = true,
+                ShowCheckMargin = false,
+                ShowImageMargin = false
+            };
 
             _notifyIcon = new NotifyIcon {
                 Icon = new Icon("Resources/rdp_tray.ico"),
@@ -95,15 +103,25 @@ namespace RdpManager {
                 ContextMenuStrip = _trayMenu
             };
 
-
             _notifyIcon.MouseClick += (s, e) => {
                 if (e.Button == MouseButtons.Left) {
-                    if (_trayMenu != null && _trayMenu.Visible ) {
-                        _trayMenu.Visible = false;
-                    } else {
-                        ShowConnectionsMenu();
+                    // Get the current mouse position
+                    var mousePos = Control.MousePosition;
+                    
+                    // Show menu at cursor position
+                    // MethodInfo mi = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic);
+                    // mi.Invoke(_notifyIcon, null);
+                    MethodInfo? mi = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic);
+    
+                    if (mi != null && _notifyIcon != null) {
+                        mi.Invoke(_notifyIcon, null);
                     }
                 }
+            };
+
+            // Handle when the menu closes
+            _trayMenu.Closed += (sender, e) => {
+                // Force cleanup if needed
             };
 
             RefreshTrayMenu();
@@ -298,16 +316,30 @@ namespace RdpManager {
             }
         }
 
-        private void ShowConnectionsMenu() {
-            if (_notifyIcon?.ContextMenuStrip != null) {
-                // Using Control.MousePosition instead of Cursor.Position
-                _notifyIcon.ContextMenuStrip.Show(Control.MousePosition);
-            }
-        }
-
         protected override void OnClosing(CancelEventArgs e) {
             _notifyIcon?.Dispose();
             base.OnClosing(e);
+            Application.Current.Shutdown();
         }
+
+        protected override void OnSourceInitialized(EventArgs e) {
+            base.OnSourceInitialized(e);
+            // Ensure window stays completely hidden
+            this.Hide();
+            NativeMethods.SetWindowVisibility(this, false);
+        }
+    }
+}
+
+internal static class NativeMethods {
+    [DllImport("user32.dll")]
+    private static extern int ShowWindow(IntPtr hWnd, uint Msg);
+
+    private const uint SW_HIDE = 0;
+    private const uint SW_SHOW = 1;
+    
+    public static void SetWindowVisibility(Window window, bool visible) {
+        var hWnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+        ShowWindow(hWnd, visible ? SW_SHOW : SW_HIDE);
     }
 }
