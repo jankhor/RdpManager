@@ -1,6 +1,8 @@
 @echo off
 if "%1" == "" (
-    echo "passing in zip filename to create."
+    echo "Passing in zip filename to create."
+    echo.
+    echo Example: createRelease c:\temp\RdpManager-1.0.4.zip
     exit /b 1
 )
 

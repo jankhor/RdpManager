@@ -64,7 +64,7 @@ namespace RdpManager
         public void LaunchRdpFile(string filePath) {
             try {
                 if (filePath.EndsWith(".rdp")) {
-                    Process.Start("mstsc.exe", $"/f \"{filePath}\"");
+                    Process.Start("mstsc.exe", $" \"{filePath}\"");
                 } else if (filePath.EndsWith(".lnk") || filePath.EndsWith(".url")) {
                     Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
                 }

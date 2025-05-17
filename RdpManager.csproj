@@ -48,7 +48,7 @@
 
   <PropertyGroup>
     <!-- Major.Minor.Patch components -->
-    <VersionPrefix>1.0.3</VersionPrefix>
+    <VersionPrefix>1.0.4</VersionPrefix>
   
     <!-- Use $([MSBuild]::Add(0, $([System.DateTime]::UtcNow.ToString("dd")))) for valid revision numbers -->
     <FileVersion>$(VersionPrefix).$([System.DateTime]::UtcNow.ToString("MMdd"))</FileVersion>
